@@ -1,15 +1,18 @@
 #include <fcntl.h>
 #include <ftw.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <unistd.h>
 
 #include "nugget-api.h"
 #define _XOPEN_SOURCE 500 // nftw likes having this around but can live without it
+#define BUFFSIZE 512
 
 bool API_IS_RUNNING = false;
 
@@ -69,31 +72,53 @@ PUBLISHER get_publisher(char* path, enum TYPE t)
 
 int get_int(LISTENER l)
 {
-    return 0;
+    char buff[BUFFSIZE];
+    int amountread = read(l.fd, buff, BUFFSIZE);
+    buff[amountread+1] = '\0'; // Make sure we're null terminated
+    return atoi(buff);
 }
 
 bool post_int(PUBLISHER p, int content)
 {
-    return false;
+    int digitcount = (int) ceil(log10(content));
+    char buff[digitcount];
+    sprintf(buff, "%i", content);
+    write(p.fd, buff, digitcount);
+
+    return true; // TODO: return false on fail
 }
 
 double get_double(LISTENER l)
 {
-    return .0;
+    char buff[BUFFSIZE];
+    int amountread = read(l.fd, buff, BUFFSIZE);
+    
+    double returnval;
+    buff[amountread+1]; // Make sure we're null terminated
+    sscanf(buff, "%s", &amountread);
+    return amountread;
 }
 
 bool post_double(PUBLISHER p, double content)
 {
-    return false;
+    char buff[BUFFSIZE];
+    sprintf(buff, "%lf", content);
+    write(p.fd, buff, strlen(buff));
+
+    return true; // TODO: RETURN false on fail
 }
 
 char* get_string(LISTENER l)
 {
-    return "";
+    static char buff[BUFFSIZE];
+    int amountread = read(l.fd, buff, BUFFSIZE);
+    buff[amountread+1] = '\0';
+    return buff;
 }
 
 bool post_string(PUBLISHER p, char* content)
 {
-    return false;
+    write(p.fd, content, strlen(content));
+    return true; // TODOL return false on fail
 }
 
