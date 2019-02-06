@@ -14,8 +14,10 @@
 #define _XOPEN_SOURCE 500 // nftw likes having this around but can live without it
 #define BUFFSIZE 512
 
+char* API_PATH = "/home/chris/Projects/rov2019/comms/api/";
 bool API_IS_RUNNING = false;
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 static int open_as_named_pipe(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf)
 {
     if(tflag == FTW_F)		// Look only at _F_iles, not directories
@@ -23,6 +25,13 @@ static int open_as_named_pipe(const char *fpath, const struct stat *sb, int tfla
     return 0;               /* To tell nftw() to continue */
 }
 
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+static int close_named_pipe(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf)
+{
+    if(tflag == FTW_F)
+        unlink(fpath);
+    return 0;
+}
 bool startapi(void)
 {
 	if(API_IS_RUNNING) {
@@ -32,12 +41,12 @@ bool startapi(void)
 	API_IS_RUNNING = true;
 
     // TODO- make relative to allow for universal usage
-	char* API_PATH = "/home/chris/Projects/rov2019/comms/api/";
     chdir(API_PATH);
     int flags = 0;
 
 	// So a fun fact about this file is that it assumes nftw hasn't been declared-- it's
 	// in ftw.h, so it's totally there and usable.
+#pragma GCC diagnostic ignored "-Wimplicit-function-declaration"
     if (nftw(API_PATH, open_as_named_pipe, 20, flags) == -1) {
         perror("nftw"); //TODO: Replace with roverr stuff
         exit(EXIT_FAILURE);
@@ -51,7 +60,13 @@ void shutdownapi(void)
 	struct rlimit rlim;
 	getrlimit(RLIMIT_NOFILE, &rlim);
 	// Start at first created file descriptor and close from there
-	for(int i = 2; i < rlim.rlim_cur; ++i) close(i);
+	for(uint i = 2; i < rlim.rlim_cur; ++i) close(i);
+
+    int flags = 0;
+    if(nftw(API_PATH, close_named_pipe, 20, flags) == -1) {
+        perror("nftw on close");
+        exit(EXIT_FAILURE);
+    }
 }
 
 LISTENER get_listener(char* path, enum TYPE t)
@@ -90,22 +105,37 @@ bool post_int(PUBLISHER p, int content)
 
 double get_double(LISTENER l)
 {
+//    char buff[BUFFSIZE];
+//    int amountread = read(l.fd, buff, BUFFSIZE-1);
+//    
+//    int readval;
+//    buff[amountread+1] = '\0'; // Make sure we're null terminated
+//    readval = atoi(buff);
+//    return readval/1000;
+//
     char buff[BUFFSIZE];
     int amountread = read(l.fd, buff, BUFFSIZE);
-    
-    double returnval;
-    buff[amountread+1]; // Make sure we're null terminated
-    sscanf(buff, "%s", &amountread);
-    return amountread;
+    buff[amountread+1] = '\0'; // Make sure we're null terminated
+    return atoi(buff)/1000;
+
 }
 
 bool post_double(PUBLISHER p, double content)
 {
-    char buff[BUFFSIZE];
-    sprintf(buff, "%lf", content);
-    write(p.fd, buff, strlen(buff));
+//    char buff[BUFFSIZE];
+//    sprintf(buff, "%lf", content*1000);
+//    write(p.fd, buff, strlen(buff));
+//
+//    return true; // TODO: RETURN false on fail
+//
+    int icontent = (int) content * 1000;
+    //printf("%i", icontent);
+    int digitcount = (int) ceil(log10(icontent));
+    char buff[digitcount];
+    sprintf(buff, "%i", icontent);
+    write(p.fd, buff, digitcount);
 
-    return true; // TODO: RETURN false on fail
+    return true; // TODO: return false on fail
 }
 
 char* get_string(LISTENER l)
