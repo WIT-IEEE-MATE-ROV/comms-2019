@@ -25,13 +25,6 @@ static int open_as_named_pipe(const char *fpath, const struct stat *sb, int tfla
     return 0;               /* To tell nftw() to continue */
 }
 
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-static int close_named_pipe(const char *fpath, const struct stat *sb, int tflag, struct FTW *ftwbuf)
-{
-    if(tflag == FTW_F)
-        unlink(fpath);
-    return 0;
-}
 bool startapi(void)
 {
 	if(API_IS_RUNNING) {
@@ -61,12 +54,6 @@ void shutdownapi(void)
 	getrlimit(RLIMIT_NOFILE, &rlim);
 	// Start at first created file descriptor and close from there
 	for(uint i = 2; i < rlim.rlim_cur; ++i) close(i);
-
-    int flags = 0;
-    if(nftw(API_PATH, close_named_pipe, 20, flags) == -1) {
-        perror("nftw on close");
-        exit(EXIT_FAILURE);
-    }
 }
 
 LISTENER get_listener(char* path, enum TYPE t)
@@ -81,10 +68,18 @@ PUBLISHER get_publisher(char* path, enum TYPE t)
 {
     PUBLISHER p;
     p.fd = open(path, O_WRONLY);
+    strcpy(p.filepath, path);
     p.t = t;
     return p;
 }
 
+void clear_file_content(char *filepath)
+{
+	chdir(API_PATH);
+	FILE *fp;
+	fp = fopen(filepath, "w");
+	fclose(fp);
+}
 int get_int(LISTENER l)
 {
     char buff[BUFFSIZE];
@@ -95,6 +90,7 @@ int get_int(LISTENER l)
 
 bool post_int(PUBLISHER p, int content)
 {
+    clear_file_content(p.filepath);
     int digitcount = (int) ceil(log10(content));
     char buff[digitcount];
     sprintf(buff, "%i", content);
@@ -105,37 +101,14 @@ bool post_int(PUBLISHER p, int content)
 
 double get_double(LISTENER l)
 {
-//    char buff[BUFFSIZE];
-//    int amountread = read(l.fd, buff, BUFFSIZE-1);
-//    
-//    int readval;
-//    buff[amountread+1] = '\0'; // Make sure we're null terminated
-//    readval = atoi(buff);
-//    return readval/1000;
-//
-    char buff[BUFFSIZE];
-    int amountread = read(l.fd, buff, BUFFSIZE);
-    buff[amountread+1] = '\0'; // Make sure we're null terminated
-    return atoi(buff)/1000;
-
+    return (1.0*get_int(l))/1000;
 }
 
 bool post_double(PUBLISHER p, double content)
 {
-//    char buff[BUFFSIZE];
-//    sprintf(buff, "%lf", content*1000);
-//    write(p.fd, buff, strlen(buff));
-//
-//    return true; // TODO: RETURN false on fail
-//
-    int icontent = (int) content * 1000;
-    //printf("%i", icontent);
-    int digitcount = (int) ceil(log10(icontent));
-    char buff[digitcount];
-    sprintf(buff, "%i", icontent);
-    write(p.fd, buff, digitcount);
-
-    return true; // TODO: return false on fail
+    clear_file_content(p.filepath);
+    int icontent = (int) (content * 1000);
+    return post_int(p, icontent);
 }
 
 char* get_string(LISTENER l)
@@ -148,7 +121,8 @@ char* get_string(LISTENER l)
 
 bool post_string(PUBLISHER p, char* content)
 {
+    clear_file_content(p.filepath);
     write(p.fd, content, strlen(content));
-    return true; // TODOL return false on fail
+    return true; // TODO: return false on fail
 }
 

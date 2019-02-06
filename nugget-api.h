@@ -11,6 +11,7 @@ enum TYPE {
 typedef struct _PUBLISHER_ {
     int fd;
     enum TYPE t;
+    char filepath[64];
 } PUBLISHER;
 
 typedef struct _LISTENER_ {

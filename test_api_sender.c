@@ -38,7 +38,7 @@ int main(void)
     printf("\nNow attempting to read from API.\n");
 
     LISTENER l_int = get_listener("testing/int", _int);
-    LISTENER l_double = get_listener("testing/double", _int);
+    LISTENER l_double = get_listener("testing/double", _double);
     LISTENER l_string = get_listener("testing/string", _string);
 
     int gotint = get_int(l_int);

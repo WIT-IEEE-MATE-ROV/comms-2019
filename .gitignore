@@ -50,3 +50,9 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# Operating system stuff
+*.swp
+
+# Compiled files
+test-api-sender
