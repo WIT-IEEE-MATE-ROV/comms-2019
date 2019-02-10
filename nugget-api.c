@@ -9,6 +9,8 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <unistd.h>
+#ifndef NUGGETAPI_SOURCE
+#define NUGGETAPI_SOURCE
 
 #include "nugget-api.h"
 #define _XOPEN_SOURCE 500 // nftw likes having this around but can live without it
@@ -126,3 +128,4 @@ bool post_string(PUBLISHER p, char* content)
     return true; // TODO: return false on fail
 }
 
+#endif
